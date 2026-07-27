@@ -5,12 +5,18 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
+    root: path.resolve(__dirname, '.'),
     base: '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        '/src': path.resolve(__dirname, './src'),
       },
+    },
+    build: {
+      outDir: path.resolve(__dirname, './dist'),
+      emptyOutDir: true,
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
