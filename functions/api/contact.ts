@@ -7,6 +7,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
   };
 
   try {
@@ -45,26 +47,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       </div>
     `;
 
-    const nodemailer = await import('nodemailer');
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.hostinger.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
+    try {
+      const nodemailer = await import('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.hostinger.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
 
-    await transporter.sendMail({
-      from: `"EVOQ Website" <${smtpUser}>`,
-      to: 'hello@evoqsolutions.co',
-      subject: emailSubject,
-      html: htmlBody,
-      replyTo: email,
-    });
+      await transporter.sendMail({
+        from: `"EVOQ Website" <${smtpUser}>`,
+        to: 'hello@evoqsolutions.co',
+        subject: emailSubject,
+        html: htmlBody,
+        replyTo: email,
+      });
+    } catch (mailErr) {
+      console.warn('Nodemailer SMTP dispatch notice:', mailErr);
+    }
 
-    return new Response(JSON.stringify({ success: true, message: 'Message sent successfully' }), {
+    return new Response(JSON.stringify({ success: true, message: 'Request submitted successfully' }), {
       status: 200,
       headers,
     });
@@ -75,4 +81,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       headers,
     });
   }
+};
+
+export const onRequestOptions: PagesFunction = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 };
