@@ -10,6 +10,8 @@ type PagesFunction<Env = unknown> = (context: {
 interface Env {
   SMTP_USER?: string;
   SMTP_PASS?: string;
+  SMTP_HOST?: string;
+  SMTP_PORT?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -58,23 +60,42 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     try {
       const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.hostinger.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
+      
+      const providers = [
+        { name: "GoDaddy Office 365", host: "smtp.office365.com", port: 587, secure: false, requireTLS: true },
+        { name: "GoDaddy Workspace (SSL)", host: "smtpout.secureserver.net", port: 465, secure: true, requireTLS: false },
+        { name: "GoDaddy Workspace (TLS)", host: "smtpout.secureserver.net", port: 587, secure: false, requireTLS: true },
+        { name: "Hostinger SMTP", host: "smtp.hostinger.com", port: 465, secure: true, requireTLS: false },
+      ];
 
-      await transporter.sendMail({
-        from: `"EVOQ Website" <${smtpUser}>`,
-        to: 'hello@evoqsolutions.co',
-        subject: emailSubject,
-        html: htmlBody,
-        replyTo: email,
-      });
+      let sent = false;
+      for (const provider of providers) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: context.env.SMTP_HOST || provider.host,
+            port: context.env.SMTP_PORT ? parseInt(context.env.SMTP_PORT, 10) : provider.port,
+            secure: provider.secure,
+            requireTLS: provider.requireTLS,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            tls: { rejectUnauthorized: false },
+          });
+
+          await transporter.sendMail({
+            from: `"EVOQ Website" <${smtpUser}>`,
+            to: 'hello@evoqsolutions.co',
+            subject: emailSubject,
+            html: htmlBody,
+            replyTo: email,
+          });
+          sent = true;
+          break;
+        } catch (e) {
+          console.warn(`Provider ${provider.name} failed:`, e);
+        }
+      }
     } catch (mailErr) {
       console.warn('Nodemailer SMTP dispatch notice:', mailErr);
     }

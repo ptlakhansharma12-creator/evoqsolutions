@@ -12,25 +12,59 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Configure Nodemailer transporter with Hostinger SMTP settings
+  // Credentials
   const smtpUser = process.env.SMTP_USER || "hello@evoqsolutions.co";
   const smtpPass = process.env.SMTP_PASS || "Kkwkhnhdknkpnh";
-  const smtpHost = process.env.SMTP_HOST || "smtp.hostinger.com";
-  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 465;
   const recipientEmail = process.env.RECIPIENT_EMAIL || "hello@evoqsolutions.co";
 
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-    tls: {
-      rejectUnauthorized: false
+  // Dynamic Multi-Provider SMTP Email Dispatcher for GoDaddy M365 / GoDaddy Workspace / Hostinger
+  async function sendEmailWithFallback(mailOptions: any) {
+    const providers = [
+      { name: "GoDaddy Office 365", host: "smtp.office365.com", port: 587, secure: false, requireTLS: true },
+      { name: "GoDaddy Workspace (SSL)", host: "smtpout.secureserver.net", port: 465, secure: true, requireTLS: false },
+      { name: "GoDaddy Workspace (TLS)", host: "smtpout.secureserver.net", port: 587, secure: false, requireTLS: true },
+      { name: "Hostinger SMTP", host: "smtp.hostinger.com", port: 465, secure: true, requireTLS: false },
+    ];
+
+    let lastError: any = null;
+
+    // If user specified custom SMTP_HOST in .env, prioritize it
+    if (process.env.SMTP_HOST) {
+      const customPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
+      providers.unshift({
+        name: `Custom (.env) ${process.env.SMTP_HOST}`,
+        host: process.env.SMTP_HOST,
+        port: customPort,
+        secure: customPort === 465,
+        requireTLS: customPort === 587,
+      });
     }
-  });
+
+    for (const provider of providers) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: provider.host,
+          port: provider.port,
+          secure: provider.secure,
+          requireTLS: provider.requireTLS,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+          tls: { rejectUnauthorized: false },
+        });
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[SMTP] Email successfully sent via ${provider.name} to ${mailOptions.to}. Message ID: ${info.messageId}`);
+        return info;
+      } catch (err: any) {
+        console.warn(`[SMTP Warning] Provider ${provider.name} failed:`, err.message);
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error("All SMTP provider attempts failed");
+  }
 
   // API routes FIRST
   app.post("/api/contact", async (req, res) => {
@@ -88,42 +122,32 @@ ${message || 'No additional message provided.'}
               <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 14px 18px; margin-bottom: 24px; border-radius: 6px;">
                 <h3 style="color: #1e40af; margin: 0 0 6px 0; font-size: 15px;">Requested Booking Schedule</h3>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; color: #1e3a8a; font-size: 14px;">
-                  <div><strong>📆 Preferred Date:</strong> <span style="color: #000; font-weight: 600;">${preferredDate || 'Flexible / Asap'}</span></div>
-                  <div><strong>⏰ Time Slot:</strong> <span style="color: #000; font-weight: 600;">${preferredTime || 'Flexible'}</span></div>
+                  <div><strong>Date:</strong> ${preferredDate || 'Flexible'}</div>
+                  <div><strong>1-Hour Time Slot:</strong> ${preferredTime || 'Flexible'}</div>
                 </div>
               </div>
             ` : ''}
 
-            <h2 style="color: #0a0a0a; margin-top: 0; font-size: 18px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;">Contact & Company Details</h2>
-            
-            <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-              <tr style="border-bottom: 1px solid #f5f5f5;">
-                <td style="padding: 10px 0; font-weight: bold; width: 160px; color: #555;">Name:</td>
-                <td style="padding: 10px 0; color: #111; font-weight: 500;">${senderName}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f5f5f5;">
-                <td style="padding: 10px 0; font-weight: bold; color: #555;">Work Email:</td>
-                <td style="padding: 10px 0; color: #111;"><a href="mailto:${email}" style="color: #2563eb; font-weight: 500; text-decoration: none;">${email}</a></td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f5f5f5;">
-                <td style="padding: 10px 0; font-weight: bold; color: #555;">Phone Number:</td>
-                <td style="padding: 10px 0; color: #111;">${phone ? `<a href="tel:${phone}" style="color: #2563eb; text-decoration: none;">${phone}</a>` : 'Not provided'}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f5f5f5;">
-                <td style="padding: 10px 0; font-weight: bold; color: #555;">Preferred Date:</td>
-                <td style="padding: 10px 0; color: #111; font-weight: 600; color: #2563eb;">${preferredDate || 'N/A'}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f5f5f5;">
-                <td style="padding: 10px 0; font-weight: bold; color: #555;">Time Slot:</td>
-                <td style="padding: 10px 0; color: #111; font-weight: 600; color: #2563eb;">${preferredTime || 'N/A'}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f5f5f5;">
-                <td style="padding: 10px 0; font-weight: bold; color: #555;">Company Size:</td>
-                <td style="padding: 10px 0; color: #111;">${companySize || 'Not specified'}</td>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #666; width: 35%;"><strong>Full Name:</strong></td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #111;">${senderName}</td>
               </tr>
               <tr>
-                <td style="padding: 10px 0; font-weight: bold; color: #555;">Primary Challenge:</td>
-                <td style="padding: 10px 0; color: #111;">${challenge || 'Not specified'}</td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #666;"><strong>Work Email:</strong></td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #111;"><a href="mailto:${email}" style="color: #2563eb; text-decoration: none;">${email}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #666;"><strong>Phone Number:</strong></td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #111;">${phone || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #666;"><strong>Company Size:</strong></td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #111;">${companySize || 'Not specified'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #666;"><strong>Primary Challenge:</strong></td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #111;">${challenge || 'Not specified'}</td>
               </tr>
             </table>
 
@@ -138,8 +162,7 @@ ${message || 'No additional message provided.'}
         </div>
       `;
 
-      // Send mail via SMTP
-      const mailInfo = await transporter.sendMail({
+      await sendEmailWithFallback({
         from: `"EVOQ Solutions" <${smtpUser}>`,
         to: recipientEmail,
         replyTo: `"${senderName}" <${email}>`,
@@ -147,8 +170,6 @@ ${message || 'No additional message provided.'}
         text: textBody,
         html: htmlBody,
       });
-
-      console.log(`[SMTP] Email successfully sent to ${recipientEmail}. Message ID: ${mailInfo.messageId}`);
 
       return res.status(200).json({ success: true, message: "Email sent successfully" });
     } catch (error: any) {
@@ -167,7 +188,6 @@ ${message || 'No additional message provided.'}
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    // Fallback for SPA routing in production
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
