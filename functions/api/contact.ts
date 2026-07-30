@@ -32,7 +32,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const smtpUser = context.env.SMTP_USER || 'hello@evoqsolutions.co';
-    const smtpPass = context.env.SMTP_PASS || '5!#Xnh&bD';
+    const smtpPass = context.env.SMTP_PASS || 'Kkwkhnhdknkpnh';
 
     const emailSubject = isBookingCall 
       ? `📅 New Discovery Call Request: ${firstName} ${lastName}` 

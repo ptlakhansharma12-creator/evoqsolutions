@@ -14,7 +14,7 @@ async function startServer() {
 
   // Configure Nodemailer transporter with Hostinger SMTP settings
   const smtpUser = process.env.SMTP_USER || "hello@evoqsolutions.co";
-  const smtpPass = process.env.SMTP_PASS || "5!#Xnh&bD";
+  const smtpPass = process.env.SMTP_PASS || "Kkwkhnhdknkpnh";
   const smtpHost = process.env.SMTP_HOST || "smtp.hostinger.com";
   const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 465;
   const recipientEmail = process.env.RECIPIENT_EMAIL || "hello@evoqsolutions.co";
