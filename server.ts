@@ -17,12 +17,13 @@ async function startServer() {
   const smtpPass = process.env.SMTP_PASS || "Kkwkhnhdknkpnh";
   const recipientEmail = process.env.RECIPIENT_EMAIL || "hello@evoqsolutions.co";
 
-  // Dynamic Multi-Provider SMTP Email Dispatcher for GoDaddy M365 / GoDaddy Workspace / Hostinger
+  // Dynamic Multi-Provider SMTP Email Dispatcher (Titan Email / GoDaddy / Hostinger)
   async function sendEmailWithFallback(mailOptions: any) {
     const providers = [
+      { name: "Titan Email (SSL)", host: "smtp.titan.email", port: 465, secure: true, requireTLS: false },
+      { name: "Titan Email (TLS)", host: "smtp.titan.email", port: 587, secure: false, requireTLS: true },
       { name: "GoDaddy Office 365", host: "smtp.office365.com", port: 587, secure: false, requireTLS: true },
       { name: "GoDaddy Workspace (SSL)", host: "smtpout.secureserver.net", port: 465, secure: true, requireTLS: false },
-      { name: "GoDaddy Workspace (TLS)", host: "smtpout.secureserver.net", port: 587, secure: false, requireTLS: true },
       { name: "Hostinger SMTP", host: "smtp.hostinger.com", port: 465, secure: true, requireTLS: false },
     ];
 
@@ -30,7 +31,7 @@ async function startServer() {
 
     // If user specified custom SMTP_HOST in .env, prioritize it
     if (process.env.SMTP_HOST) {
-      const customPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
+      const customPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 465;
       providers.unshift({
         name: `Custom (.env) ${process.env.SMTP_HOST}`,
         host: process.env.SMTP_HOST,

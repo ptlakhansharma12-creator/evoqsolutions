@@ -62,13 +62,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const nodemailer = await import('nodemailer');
       
       const providers = [
+        { name: "Titan Email (SSL)", host: "smtp.titan.email", port: 465, secure: true, requireTLS: false },
+        { name: "Titan Email (TLS)", host: "smtp.titan.email", port: 587, secure: false, requireTLS: true },
         { name: "GoDaddy Office 365", host: "smtp.office365.com", port: 587, secure: false, requireTLS: true },
         { name: "GoDaddy Workspace (SSL)", host: "smtpout.secureserver.net", port: 465, secure: true, requireTLS: false },
-        { name: "GoDaddy Workspace (TLS)", host: "smtpout.secureserver.net", port: 587, secure: false, requireTLS: true },
         { name: "Hostinger SMTP", host: "smtp.hostinger.com", port: 465, secure: true, requireTLS: false },
       ];
 
-      let sent = false;
       for (const provider of providers) {
         try {
           const transporter = nodemailer.createTransport({
@@ -90,7 +90,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             html: htmlBody,
             replyTo: email,
           });
-          sent = true;
           break;
         } catch (e) {
           console.warn(`Provider ${provider.name} failed:`, e);
